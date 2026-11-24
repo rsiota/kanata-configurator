@@ -1,6 +1,7 @@
 export type KeyAction =
   | { type: 'key'; code: string }
   | { type: 'transparent' }
+  | { type: 'none' }
   | { type: 'layer-toggle'; layer: string }
   | { type: 'layer-switch'; layer: string }
   | {
@@ -10,6 +11,8 @@ export type KeyAction =
       tapMs: number
       holdMs: number
     }
+  | { type: 'multi'; actions: KeyAction[] }
+  | { type: 'raw'; expr: string }
 
 export interface PhysicalKey {
   /** Unique id within the layout, e.g. "0,0" */
@@ -46,4 +49,6 @@ export interface ProjectConfig {
   layers: Layer[]
   activeLayerId: string
   selectedKeyId: string | null
+  /** Optional runtime layout when importing a .kbd that is not a known board */
+  customLayout?: KeyboardLayout
 }

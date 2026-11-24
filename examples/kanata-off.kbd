@@ -1,0 +1,84 @@
+(defcfg
+	process-unmapped-keys yes
+	;; Do not macos-dev-names-include only the Karabiner virtual keyboard: kanata must
+	;; initialize DriverKit VHID first, and that device does not exist until then.
+)
+
+(defsrc
+	q    w    e    r   t   y   u   i   o   p
+	a    s    d    f   g   h   j   k   l   ;
+    z    x    c    v   b   n   m   ,   .   /
+	lctl
+)
+
+(defvar
+	tap-time 200
+	hold-time 175 
+)
+
+(defalias
+    l_cmd (layer-toggle cmd)
+    l_sys (layer-toggle sys)
+    l_num (layer-toggle num)
+    l_til (layer-toggle til)
+    l_sym (layer-toggle sym)
+	hyperkey (tap-hold $tap-time $hold-time esc (multi lsft lctl lalt lmet))
+
+	q (tap-hold $tap-time $hold-time q q)
+	w (tap-hold $tap-time $hold-time w lctl)
+	e (tap-hold $tap-time $hold-time e lalt)
+	r (tap-hold $tap-time $hold-time r @l_til)
+	i (tap-hold $tap-time $hold-time i lalt)
+	o (tap-hold $tap-time $hold-time o lctl)
+	f (tap-hold $tap-time $hold-time f @l_cmd)
+	a (tap-hold $tap-time $hold-time a lsft)
+	s (tap-hold $tap-time $hold-time s @l_num)
+	; (tap-hold $tap-time $hold-time ; lsft)
+	d (tap-hold $tap-time $hold-time d @l_sys)
+	v (tap-hold $tap-time $hold-time v @l_sym)
+	g (tap-hold $tap-time $hold-time g lmet)
+	h (tap-hold $tap-time $hold-time h lmet)
+	lcmd (tap-hold $tap-time $hold-time lctl lmet)
+)
+
+(deflayer bas
+	@q    @w    @e   @r   t    y    u    @i   @o   p
+	@a   @s    @d   @f   @g   @h   j    k    l    @;
+	z    x     c    @v   b    n    m   ,    .     /
+	@lcmd
+)
+
+(deflayer cmd
+	XX   XX   XX   XX   XX    XX     tab    esc    bspc    XX
+	XX   XX   XX   XX   XX    left   down   up     right   ret
+	XX   XX	  XX   XX   XX    XX     XX     XX     XX      XX
+	@lcmd
+)
+
+(deflayer sys 
+   XX   XX   XX   XX   XX   +   =    S-9   S-0   XX        
+   XX   XX   XX   XX   XX   S-'   '    [     ]     XX   
+   XX   XX   XX   XX   XX   S--   -    S-[   S-]   XX 
+	@lcmd
+)
+
+(deflayer num
+	XX   XX   XX   XX   XX   XX   1   2   3   XX
+	XX   XX   XX   XX   XX   XX   4   5   6   0
+	XX	 XX	  XX   XX   XX   XX   7   8   9   .
+	@lcmd
+)
+
+(deflayer til
+	XX   XX   XX   XX   XX   XX   C-A-1   C-A-2   C-A-3   XX
+	XX   XX   XX   XX   XX   XX   C-A-4   C-A-5   C-A-6   XX
+	XX	 XX	  XX   XX   XX   XX   C-A-7   C-A-8   C-A-9   XX
+	@lcmd
+)
+
+(deflayer sym
+	XX   XX   XX   XX   XX   XX   XX   XX   XX   XX
+	XX   XX   XX   XX   XX   XX   S-2  S-4  S-5  S-7
+	XX	 XX	  XX   XX   XX   XX   '    S-'  \    S-\
+	@lcmd
+)

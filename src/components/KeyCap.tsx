@@ -15,12 +15,20 @@ function actionLabel(action: KeyAction | undefined, fallback: string): string {
       return action.code
     case 'transparent':
       return '▽'
+    case 'none':
+      return 'XX'
     case 'layer-toggle':
       return `↥ ${action.layer}`
     case 'layer-switch':
       return `⇄ ${action.layer}`
     case 'tap-hold':
       return `${actionLabel(action.tap, '·')} / ${actionLabel(action.hold, '·')}`
+    case 'multi':
+      return action.actions.map((a) => actionLabel(a, '·')).join('+')
+    case 'raw':
+      return action.expr.length > 18
+        ? `${action.expr.slice(0, 16)}…`
+        : action.expr
     default:
       return fallback
   }
@@ -38,7 +46,8 @@ export function KeyCap({
   const isMod =
     action?.type === 'layer-toggle' ||
     action?.type === 'layer-switch' ||
-    action?.type === 'tap-hold'
+    action?.type === 'tap-hold' ||
+    action?.type === 'multi'
 
   return (
     <button

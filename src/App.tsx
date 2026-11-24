@@ -3,19 +3,19 @@ import { ActionPanel } from './components/ActionPanel'
 import { ExportPanel } from './components/ExportPanel'
 import { Keyboard } from './components/Keyboard'
 import { LayerTabs } from './components/LayerTabs'
-import { getLayout, layouts } from './layouts'
 import { createDefaultConfig } from './lib/defaultConfig'
+import { availableLayouts, resolveLayout } from './lib/resolveLayout'
 import type { KeyAction, Layer, ProjectConfig } from './lib/types'
 
 export default function App() {
   const [config, setConfig] = useState<ProjectConfig>(() =>
     createDefaultConfig('km40'),
   )
+  const [importNotice, setImportNotice] = useState<string | null>(null)
 
-  const layout = useMemo(
-    () => getLayout(config.layoutId),
-    [config.layoutId],
-  )
+  const layout = useMemo(() => resolveLayout(config), [config])
+  const layoutOptions = useMemo(() => availableLayouts(config), [config])
+
   const activeLayer =
     config.layers.find((l) => l.id === config.activeLayerId) ??
     config.layers[0]
@@ -58,6 +58,19 @@ export default function App() {
     })
   }
 
+  function handleLayoutChange(layoutId: string) {
+    setImportNotice(null)
+    if (config.customLayout && layoutId === config.customLayout.id) {
+      setConfig((prev) => ({
+        ...prev,
+        layoutId,
+        selectedKeyId: null,
+      }))
+      return
+    }
+    setConfig(createDefaultConfig(layoutId))
+  }
+
   return (
     <div className="app">
       <div className="atmosphere" aria-hidden="true" />
@@ -72,11 +85,9 @@ export default function App() {
           <span>Layout</span>
           <select
             value={config.layoutId}
-            onChange={(e) =>
-              setConfig(createDefaultConfig(e.target.value))
-            }
+            onChange={(e) => handleLayoutChange(e.target.value)}
           >
-            {layouts.map((l) => (
+            {layoutOptions.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
@@ -90,6 +101,9 @@ export default function App() {
           <div className="board-stage__intro">
             <h1>{layout.name}</h1>
             <p>{layout.description}</p>
+            {importNotice && (
+              <p className="import-notice">{importNotice}</p>
+            )}
           </div>
 
           <LayerTabs
@@ -122,7 +136,17 @@ export default function App() {
             layers={config.layers}
             onChange={setBinding}
           />
-          <ExportPanel config={config} />
+          <ExportPanel
+            config={config}
+            onImport={(next, warnings) => {
+              setConfig(next)
+              setImportNotice(
+                warnings.length > 0
+                  ? `Imported with notes: ${warnings.join(' · ')}`
+                  : `Imported ${next.layers.length} layers from .kbd`,
+              )
+            }}
+          />
         </div>
       </main>
     </div>

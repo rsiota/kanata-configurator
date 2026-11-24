@@ -1,19 +1,18 @@
 import type { KeyAction, KeyboardLayout, Layer, ProjectConfig } from './types'
-import { getLayout } from '../layouts'
+import { resolveLayout } from './resolveLayout'
 
 function escapeAliasName(name: string): string {
   return name.replace(/[^a-zA-Z0-9_-]/g, '_')
 }
 
-function actionToKanata(
-  action: KeyAction | undefined,
-  layers: Layer[],
-): string {
+function actionToKanata(action: KeyAction | undefined): string {
   if (!action) return '_'
 
   switch (action.type) {
     case 'transparent':
       return '_'
+    case 'none':
+      return 'XX'
     case 'key':
       return action.code
     case 'layer-toggle':
@@ -21,7 +20,11 @@ function actionToKanata(
     case 'layer-switch':
       return `(layer-switch ${escapeAliasName(action.layer)})`
     case 'tap-hold':
-      return `(tap-hold ${action.tapMs} ${action.holdMs} ${actionToKanata(action.tap, layers)} ${actionToKanata(action.hold, layers)})`
+      return `(tap-hold ${action.tapMs} ${action.holdMs} ${actionToKanata(action.tap)} ${actionToKanata(action.hold)})`
+    case 'multi':
+      return `(multi ${action.actions.map(actionToKanata).join(' ')})`
+    case 'raw':
+      return action.expr
     default:
       return '_'
   }
@@ -33,23 +36,25 @@ function formatRow(
   row: number,
 ): string {
   const keys = layout.keys.filter((k) => k.row === row)
-  // Preserve visual order as stored in the layout definition
-  return keys.map((k) => actionToKanata(layer.bindings[k.id], [layer])).join('  ')
+  return keys.map((k) => actionToKanata(layer.bindings[k.id])).join('  ')
 }
 
 export function exportKanataConfig(config: ProjectConfig): string {
-  const layout = getLayout(config.layoutId)
-  const maxRow = Math.max(...layout.keys.map((k) => k.row))
+  const layout = resolveLayout(config)
+  const maxRow = Math.max(...layout.keys.map((k) => k.row), 0)
 
   const defsrcRows: string[] = []
   for (let row = 0; row <= maxRow; row++) {
     const keys = layout.keys.filter((k) => k.row === row)
+    if (keys.length === 0) continue
     defsrcRows.push('  ' + keys.map((k) => k.defsrc).join('  '))
   }
 
   const layerBlocks = config.layers.map((layer) => {
     const rows: string[] = []
     for (let row = 0; row <= maxRow; row++) {
+      const keys = layout.keys.filter((k) => k.row === row)
+      if (keys.length === 0) continue
       rows.push('  ' + formatRow(layout, layer, row))
     }
     return `(deflayer ${escapeAliasName(layer.name)}\n${rows.join('\n')}\n)`

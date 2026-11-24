@@ -55,13 +55,15 @@ export function ActionPanel({
       <label className="field">
         <span>Action</span>
         <select
-          value={type}
+          value={type === 'raw' || type === 'multi' ? type : type}
           onChange={(e) => {
             const next = e.target.value as KeyAction['type']
             if (next === 'key') {
               onChange({ type: 'key', code: keyDef.defsrc })
             } else if (next === 'transparent') {
               onChange({ type: 'transparent' })
+            } else if (next === 'none') {
+              onChange({ type: 'none' })
             } else if (next === 'layer-toggle') {
               onChange({
                 type: 'layer-toggle',
@@ -88,9 +90,12 @@ export function ActionPanel({
         >
           <option value="key">Key</option>
           <option value="transparent">Transparent</option>
+          <option value="none">None (XX)</option>
           <option value="layer-toggle">Layer toggle (hold)</option>
           <option value="layer-switch">Layer switch</option>
           <option value="tap-hold">Tap-hold</option>
+          {type === 'multi' && <option value="multi">Multi</option>}
+          {type === 'raw' && <option value="raw">Raw</option>}
         </select>
       </label>
 
@@ -153,26 +158,20 @@ export function ActionPanel({
             />
           </label>
           <label className="field">
-            <span>Hold layer</span>
-            <select
+            <span>Hold</span>
+            <input
               value={
                 action.hold.type === 'layer-toggle'
-                  ? action.hold.layer
-                  : layers[0].name
+                  ? `layer-toggle:${action.hold.layer}`
+                  : action.hold.type === 'key'
+                    ? action.hold.code
+                    : action.hold.type === 'multi'
+                      ? '(multi …)'
+                      : action.hold.type
               }
-              onChange={(e) =>
-                onChange({
-                  ...action,
-                  hold: { type: 'layer-toggle', layer: e.target.value },
-                })
-              }
-            >
-              {layers.map((layer) => (
-                <option key={layer.id} value={layer.name}>
-                  {layer.name}
-                </option>
-              ))}
-            </select>
+              readOnly
+              title="Hold action imported from .kbd"
+            />
           </label>
           <div className="field-row">
             <label className="field">
@@ -199,6 +198,22 @@ export function ActionPanel({
             </label>
           </div>
         </>
+      )}
+
+      {type === 'multi' && action?.type === 'multi' && (
+        <p className="field-note">
+          Multi chord with {action.actions.length} parts (imported).
+        </p>
+      )}
+
+      {type === 'raw' && action?.type === 'raw' && (
+        <label className="field">
+          <span>Raw expression</span>
+          <input
+            value={action.expr}
+            onChange={(e) => onChange({ type: 'raw', expr: e.target.value })}
+          />
+        </label>
       )}
     </aside>
   )
