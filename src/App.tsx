@@ -4,17 +4,53 @@ import { ActionPanel } from './components/ActionPanel'
 import { Keyboard } from './components/Keyboard'
 import { LayerTabs } from './components/LayerTabs'
 import { SourcePanel } from './components/SourcePanel'
+import { layouts } from './layouts'
+import { loadBoards, saveBoards } from './lib/boardLibrary'
 import { createDefaultConfig } from './lib/defaultConfig'
 import { exportKanataConfig } from './lib/kanataExport'
 import { importKanataConfig } from './lib/kanataImport'
-import { availableLayouts, resolveLayout } from './lib/resolveLayout'
-import type { KeyAction, Layer, ProjectConfig } from './lib/types'
+import { resolveLayout } from './lib/resolveLayout'
+import type { KeyAction, Layer, ProjectConfig, SavedBoard } from './lib/types'
 
 type Anchor = Pick<
   DOMRect,
   'left' | 'top' | 'right' | 'bottom' | 'width' | 'height'
 >
 type Notice = { text: string; tone: 'info' | 'error' } | null
+
+function snapshot(config: ProjectConfig): ProjectConfig {
+  return { ...config, selectedKeyId: null }
+}
+
+function sameConfig(a: ProjectConfig, b: ProjectConfig): boolean {
+  return JSON.stringify(snapshot(a)) === JSON.stringify(snapshot(b))
+}
+
+function uniqueId(prefix: string): string {
+  const random =
+    typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${random}`
+}
+
+function makeBoard(
+  config: ProjectConfig,
+  name: string,
+  id = uniqueId('board'),
+): SavedBoard {
+  const layout = resolveLayout(config)
+  return {
+    id,
+    name,
+    config: {
+      ...snapshot(config),
+      layoutId: id,
+      customLayout: { ...layout, id },
+    },
+    savedAt: Date.now(),
+  }
+}
 
 export default function App() {
   const [config, setConfig] = useState<ProjectConfig>(() =>
@@ -26,13 +62,15 @@ export default function App() {
   const [popoverPos, setPopoverPos] = useState<{ left: number; top: number } | null>(
     null,
   )
+  const [savedBoards, setSavedBoards] = useState<SavedBoard[]>(loadBoards)
+  const [activeBoardId, setActiveBoardId] = useState<string | null>(null)
 
   const popoverRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const lastKeyRef = useRef<HTMLElement | null>(null)
+  const baselineRef = useRef<ProjectConfig>(snapshot(config))
 
   const layout = useMemo(() => resolveLayout(config), [config])
-  const layoutOptions = useMemo(() => availableLayouts(config), [config])
   const source = useMemo(() => exportKanataConfig(config), [config])
 
   const activeLayer =
@@ -53,6 +91,10 @@ export default function App() {
     const timer = window.setTimeout(() => setNotice(null), 5000)
     return () => window.clearTimeout(timer)
   }, [notice])
+
+  useEffect(() => {
+    saveBoards(savedBoards)
+  }, [savedBoards])
 
   useLayoutEffect(() => {
     if (!selectedKey || !anchor) return
@@ -163,18 +205,71 @@ export default function App() {
     })
   }
 
+  function applyNextConfig(next: ProjectConfig, boardId: string | null) {
+    const clean = snapshot(next)
+    setConfig(clean)
+    setActiveBoardId(boardId)
+    baselineRef.current = clean
+    closeSelection()
+  }
+
+  function snapshotCurrentInto(boards: SavedBoard[]): SavedBoard[] {
+    if (sameConfig(config, baselineRef.current)) return boards
+
+    if (activeBoardId) {
+      const existing = boards.find((b) => b.id === activeBoardId)
+      if (existing) {
+        return boards.map((b) =>
+          b.id === activeBoardId
+            ? {
+                ...b,
+                config: {
+                  ...snapshot(config),
+                  layoutId: b.id,
+                  customLayout: { ...layout, id: b.id },
+                },
+                savedAt: Date.now(),
+              }
+            : b,
+        )
+      }
+    }
+
+    return [...boards, makeBoard(config, `${layout.name} (custom)`)]
+  }
+
   function handleLayoutChange(layoutId: string) {
     setNotice(null)
-    closeSelection()
-    if (config.customLayout && layoutId === config.customLayout.id) {
-      setConfig((prev) => ({
-        ...prev,
-        layoutId,
-        selectedKeyId: null,
-      }))
+    const boards = snapshotCurrentInto(savedBoards)
+    setSavedBoards(boards)
+
+    if (layouts.some((l) => l.id === layoutId)) {
+      applyNextConfig(createDefaultConfig(layoutId), null)
       return
     }
-    setConfig(createDefaultConfig(layoutId))
+
+    const board = boards.find((b) => b.id === layoutId)
+    if (board) applyNextConfig(board.config, board.id)
+  }
+
+  function renameActiveBoard() {
+    if (!activeBoardId) return
+    const board = savedBoards.find((b) => b.id === activeBoardId)
+    if (!board) return
+    const name = window.prompt('Board name', board.name)?.trim()
+    if (!name) return
+    setSavedBoards((prev) =>
+      prev.map((b) => (b.id === board.id ? { ...b, name } : b)),
+    )
+  }
+
+  function deleteActiveBoard() {
+    if (!activeBoardId) return
+    const board = savedBoards.find((b) => b.id === activeBoardId)
+    if (!board) return
+    if (!window.confirm(`Delete "${board.name}"?`)) return
+    setSavedBoards((prev) => prev.filter((b) => b.id !== board.id))
+    applyNextConfig(createDefaultConfig('km40'), null)
   }
 
   async function copySource() {
@@ -201,15 +296,28 @@ export default function App() {
     try {
       const text = await file.text()
       const name = file.name.replace(/\.kbd$/i, '')
-      const { config: next, warnings } = importKanataConfig(text, { name })
-      setConfig(next)
+      const { config: imported, warnings } = importKanataConfig(text, { name })
+
+      const id = uniqueId('board')
+      const importedLayout = imported.customLayout
+      const next: ProjectConfig = {
+        ...imported,
+        layoutId: id,
+        customLayout: importedLayout
+          ? { ...importedLayout, id }
+          : { ...resolveLayout(imported), id },
+        selectedKeyId: null,
+      }
+      const board = makeBoard(next, name, id)
+
+      setSavedBoards([...snapshotCurrentInto(savedBoards), board])
       setSourceOpen(false)
-      closeSelection()
+      applyNextConfig(next, id)
       setNotice({
         text:
           warnings.length > 0
             ? `Imported with notes: ${warnings.join(' · ')}`
-            : `Imported ${next.layers.length} layers from ${file.name}`,
+            : `Saved "${name}" with ${next.layers.length} layers`,
         tone: 'info',
       })
     } catch (err) {
@@ -238,18 +346,47 @@ export default function App() {
 
         <nav className="nav-actions" aria-label="Project actions">
           <label className="layout-picker">
-            <span>Layout</span>
+            <span>Board</span>
             <select
-              value={config.layoutId}
+              value={activeBoardId ?? config.layoutId}
               onChange={(e) => handleLayoutChange(e.target.value)}
             >
-              {layoutOptions.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
+              <optgroup label="Built-in">
+                {layouts.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </optgroup>
+              {savedBoards.length > 0 && (
+                <optgroup label="Saved">
+                  {savedBoards.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
+          {activeBoardId && (
+            <>
+              <button
+                type="button"
+                className="nav-btn"
+                onClick={renameActiveBoard}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className="nav-btn"
+                onClick={deleteActiveBoard}
+              >
+                Delete
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="nav-btn"

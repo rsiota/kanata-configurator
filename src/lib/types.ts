@@ -56,3 +56,11 @@ export interface ProjectConfig {
   /** Optional runtime layout when importing a .kbd that is not a known board */
   customLayout?: KeyboardLayout
 }
+
+/** A named board saved in the local library (layout + layers + bindings). */
+export interface SavedBoard {
+  id: string
+  name: string
+  config: ProjectConfig
+  savedAt: number
+}
