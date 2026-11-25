@@ -84,7 +84,7 @@ export function actionLabel(
     case 'transparent':
       return '▽'
     case 'none':
-      return 'XX'
+      return ''
     case 'layer-toggle':
       return `↥ ${action.layer}`
     case 'layer-switch':
@@ -92,7 +92,10 @@ export function actionLabel(
     case 'tap-hold':
       return `${actionLabel(action.tap, '·')} / ${actionLabel(action.hold, '·')}`
     case 'multi':
-      return action.actions.map((a) => actionLabel(a, '·')).join(' + ')
+      return action.actions
+        .map((a) => actionLabel(a, '·'))
+        .filter(Boolean)
+        .join(' + ')
     case 'raw':
       return action.expr.length > 18
         ? `${action.expr.slice(0, 16)}…`

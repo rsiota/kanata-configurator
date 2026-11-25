@@ -339,6 +339,7 @@ code {
 .keycap.is-selected {
   background: var(--ink);
   border-color: var(--ink);
+  border-style: solid;
   color: var(--paper);
 }
 
@@ -347,9 +348,11 @@ code {
   font-weight: 500;
 }
 
-.keycap--none .keycap__legend {
-  color: var(--muted);
-  text-decoration: line-through;
+.keycap--none {
+  background: var(--paper);
+  border-color: var(--line-strong);
+  border-style: dashed;
+  box-shadow: none;
 }
 
 .keycap--layer-toggle,
