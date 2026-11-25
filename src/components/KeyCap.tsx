@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { actionLabel, actionSource } from '../lib/keyDisplay'
 import type { KeyAction, PhysicalKey } from '../lib/types'
 
 interface KeyCapProps {
@@ -6,66 +7,6 @@ interface KeyCapProps {
   action: KeyAction | undefined
   selected: boolean
   onSelect: (id: string, rect: DOMRect) => void
-}
-
-const KEY_LABELS: Record<string, string> = {
-  esc: 'Esc',
-  tab: 'Tab',
-  ret: 'Enter',
-  bspc: 'Bksp',
-  spc: 'Space',
-  caps: 'Caps',
-  lsft: 'Shift',
-  rsft: 'Shift',
-  lctl: 'Ctrl',
-  rctl: 'Ctrl',
-  lalt: 'Alt',
-  ralt: 'Alt',
-  lmet: 'Meta',
-  rmet: 'Meta',
-  app: 'Menu',
-  del: 'Del',
-  ins: 'Ins',
-  home: 'Home',
-  end: 'End',
-  pgup: 'PgUp',
-  pgdn: 'PgDn',
-  up: '↑',
-  down: '↓',
-  left: '←',
-  right: '→',
-}
-
-function keyLabel(code: string): string {
-  const known = KEY_LABELS[code.toLowerCase()]
-  if (known) return known
-  return code.length === 1 ? code.toUpperCase() : code
-}
-
-function actionLabel(action: KeyAction | undefined, fallback: string): string {
-  if (!action) return fallback
-  switch (action.type) {
-    case 'key':
-      return keyLabel(action.code)
-    case 'transparent':
-      return '▽'
-    case 'none':
-      return 'XX'
-    case 'layer-toggle':
-      return `↥ ${action.layer}`
-    case 'layer-switch':
-      return `⇄ ${action.layer}`
-    case 'tap-hold':
-      return `${actionLabel(action.tap, '·')} / ${actionLabel(action.hold, '·')}`
-    case 'multi':
-      return action.actions.map((a) => actionLabel(a, '·')).join(' + ')
-    case 'raw':
-      return action.expr.length > 18
-        ? `${action.expr.slice(0, 16)}…`
-        : action.expr
-    default:
-      return fallback
-  }
 }
 
 export function KeyCap({ keyDef, action, selected, onSelect }: KeyCapProps) {
@@ -86,7 +27,7 @@ export function KeyCap({ keyDef, action, selected, onSelect }: KeyCapProps) {
       style={style}
       onClick={(e) => onSelect(keyDef.id, e.currentTarget.getBoundingClientRect())}
       aria-pressed={selected}
-      title={`${keyDef.id} · matrix ${keyDef.col} · defsrc ${keyDef.defsrc}`}
+      title={`${keyDef.id} · matrix ${keyDef.col} · defsrc ${keyDef.defsrc} · ${actionSource(action, keyDef.label)}`}
     >
       {isTapHold ? (
         <span className="keycap__legend keycap__legend--stack">
