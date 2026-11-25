@@ -73,38 +73,6 @@ export function keyLabel(code: string): string {
   return code.length === 1 ? code.toUpperCase() : code
 }
 
-export function actionLabel(
-  action: KeyAction | undefined,
-  fallback: string,
-): string {
-  if (!action) return fallback
-  switch (action.type) {
-    case 'key':
-      return keyLabel(action.code)
-    case 'transparent':
-      return '▽'
-    case 'none':
-      return ''
-    case 'layer-toggle':
-      return `↥ ${action.layer}`
-    case 'layer-switch':
-      return `⇄ ${action.layer}`
-    case 'tap-hold':
-      return `${actionLabel(action.tap, '·')} / ${actionLabel(action.hold, '·')}`
-    case 'multi':
-      return action.actions
-        .map((a) => actionLabel(a, '·'))
-        .filter(Boolean)
-        .join(' + ')
-    case 'raw':
-      return action.expr.length > 18
-        ? `${action.expr.slice(0, 16)}…`
-        : action.expr
-    default:
-      return fallback
-  }
-}
-
 /** Raw Kanata-facing value, used for tooltips without changing export. */
 export function actionSource(
   action: KeyAction | undefined,

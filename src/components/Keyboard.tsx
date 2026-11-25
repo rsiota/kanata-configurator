@@ -5,6 +5,7 @@ import { KeyCap } from './KeyCap'
 interface KeyboardProps {
   layout: KeyboardLayout
   bindings: Record<string, KeyAction>
+  layerNumbers: Record<string, number>
   selectedKeyId: string | null
   onSelectKey: (id: string, rect: DOMRect) => void
 }
@@ -17,6 +18,7 @@ type BoardStyle = CSSProperties & {
 export function Keyboard({
   layout,
   bindings,
+  layerNumbers,
   selectedKeyId,
   onSelectKey,
 }: KeyboardProps) {
@@ -36,6 +38,7 @@ export function Keyboard({
             key={key.id}
             keyDef={key}
             action={bindings[key.id]}
+            layerNumbers={layerNumbers}
             selected={selectedKeyId === key.id}
             onSelect={onSelectKey}
           />

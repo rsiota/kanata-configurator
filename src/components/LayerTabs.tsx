@@ -21,7 +21,7 @@ export function LayerTabs({
 }: LayerTabsProps) {
   return (
     <div className="layer-tabs" role="tablist" aria-label="Layers">
-      {layers.map((layer) => (
+      {layers.map((layer, index) => (
         <div
           key={layer.id}
           className="layer-tabs__item"
@@ -32,9 +32,14 @@ export function LayerTabs({
             role="tab"
             aria-selected={layer.id === activeLayerId}
             className={`layer-tabs__tab${layer.id === activeLayerId ? ' is-active' : ''}`}
+            aria-label={`Layer ${index + 1}: ${layer.name}`}
+            title={`Layer ${index + 1}: ${layer.name}`}
             onClick={() => onSelect(layer.id)}
           >
-            {layer.name}
+            <span className="layer-tabs__num" aria-hidden="true">
+              {index + 1}
+            </span>
+            <span className="layer-tabs__name">{layer.name}</span>
           </button>
           <button
             type="button"

@@ -147,6 +147,9 @@ export default function App() {
     anchor: Anchor
   } | null>(null)
   const [layerMenuPos, setLayerMenuPos] = useState<Position | null>(null)
+  const [boardEditor, setBoardEditor] = useState<{ anchor: Anchor } | null>(null)
+  const [boardDraft, setBoardDraft] = useState('')
+  const [boardPopoverPos, setBoardPopoverPos] = useState<Position | null>(null)
   const [savedBoards, setSavedBoards] = useState<SavedBoard[]>(loadBoards)
   const [activeBoardId, setActiveBoardId] = useState<string | null>(
     restored?.boardId ?? null,
@@ -155,20 +158,32 @@ export default function App() {
   const popoverRef = useRef<HTMLDivElement>(null)
   const layerPopoverRef = useRef<HTMLDivElement>(null)
   const layerMenuRef = useRef<HTMLDivElement>(null)
+  const boardPopoverRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const lastKeyRef = useRef<HTMLElement | null>(null)
+  const lastBoardTriggerRef = useRef<HTMLElement | null>(null)
   const lastLayerTriggerRef = useRef<HTMLElement | null>(null)
   const lastLayerMenuTriggerRef = useRef<HTMLElement | null>(null)
   const baselineRef = useRef<ProjectConfig>(snapshot(config))
 
   const layout = useMemo(() => resolveLayout(config), [config])
   const source = useMemo(() => exportKanataConfig(config), [config])
+  const layerNumbers = useMemo(
+    () =>
+      Object.fromEntries(
+        config.layers.map((layer, index) => [layer.name, index + 1]),
+      ),
+    [config.layers],
+  )
 
   const activeLayer =
     config.layers.find((l) => l.id === config.activeLayerId) ??
     config.layers[0]
   const selectedKey =
     layout.keys.find((k) => k.id === config.selectedKeyId) ?? null
+  const activeBoard = activeBoardId
+    ? savedBoards.find((b) => b.id === activeBoardId) ?? null
+    : null
   const menuLayer = layerMenu
     ? config.layers.find((l) => l.id === layerMenu.id) ?? null
     : null
@@ -195,6 +210,40 @@ export default function App() {
     if (restoreFocus) lastLayerMenuTriggerRef.current?.focus()
   }
 
+  function closeBoardEditor(restoreFocus = false) {
+    setBoardEditor(null)
+    setBoardPopoverPos(null)
+    if (restoreFocus) lastBoardTriggerRef.current?.focus()
+  }
+
+  function openBoardEditor(rect: Anchor) {
+    if (!activeBoard) return
+    lastBoardTriggerRef.current = document.activeElement as HTMLElement | null
+    setBoardDraft(activeBoard.name)
+    setBoardEditor({ anchor: rect })
+    closeSelection()
+    closeLayerEditor()
+    closeLayerMenu()
+  }
+
+  function saveBoardRename() {
+    if (!activeBoard) return
+    const name = boardDraft.trim()
+    if (!name) {
+      setNotice({ text: 'Board name cannot be empty', tone: 'error' })
+      return
+    }
+
+    if (name !== activeBoard.name) {
+      setSavedBoards((prev) =>
+        prev.map((b) => (b.id === activeBoard.id ? { ...b, name } : b)),
+      )
+      setNotice({ text: `Renamed board to "${name}"`, tone: 'info' })
+    }
+
+    closeBoardEditor(true)
+  }
+
   function openLayerEditor(
     id: string,
     rect: Anchor,
@@ -206,6 +255,7 @@ export default function App() {
     setLayerEditor({ id, anchor: rect })
     closeSelection()
     closeLayerMenu()
+    closeBoardEditor()
   }
 
   function handleLayerAction(id: string, action: LayerAction, rect: Anchor) {
@@ -214,6 +264,7 @@ export default function App() {
       setLayerMenu({ id, anchor: rect })
       closeSelection()
       closeLayerEditor()
+      closeBoardEditor()
       return
     }
 
@@ -361,6 +412,22 @@ export default function App() {
   }, [layerEditor])
 
   useLayoutEffect(() => {
+    if (!boardEditor) return
+    const el = boardPopoverRef.current
+    if (!el) return
+
+    function place() {
+      if (el && boardEditor) {
+        setBoardPopoverPos(placePopover(el, boardEditor.anchor))
+      }
+    }
+
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [boardEditor])
+
+  useLayoutEffect(() => {
     if (!layerMenu) return
     const el = layerMenuRef.current
     if (!el) return
@@ -377,7 +444,13 @@ export default function App() {
   }, [layerMenu])
 
   useEffect(() => {
-    if (!config.selectedKeyId && !layerEditor && !layerMenu && !sourceOpen) {
+    if (
+      !config.selectedKeyId &&
+      !layerEditor &&
+      !layerMenu &&
+      !boardEditor &&
+      !sourceOpen
+    ) {
       return
     }
 
@@ -391,6 +464,7 @@ export default function App() {
       if (
         target.closest('.keycap') ||
         target.closest('.layer-tabs__chevron') ||
+        target.closest('.board-stage__title-btn') ||
         target.closest('.popover')
       ) {
         return
@@ -398,11 +472,13 @@ export default function App() {
       closeSelection()
       closeLayerEditor()
       closeLayerMenu()
+      closeBoardEditor()
     }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       if (sourceOpen) setSourceOpen(false)
+      else if (boardEditor) closeBoardEditor(true)
       else if (layerEditor) closeLayerEditor(true)
       else if (layerMenu) closeLayerMenu(true)
       else closeSelection(true)
@@ -414,7 +490,7 @@ export default function App() {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [config.selectedKeyId, layerEditor, layerMenu, sourceOpen])
+  }, [config.selectedKeyId, layerEditor, layerMenu, boardEditor, sourceOpen])
 
   function updateActiveLayer(mutator: (layer: Layer) => Layer) {
     setConfig((prev) => ({
@@ -470,6 +546,7 @@ export default function App() {
     closeSelection()
     closeLayerEditor()
     closeLayerMenu()
+    closeBoardEditor()
   }
 
   function snapshotCurrentInto(boards: SavedBoard[]): SavedBoard[] {
@@ -511,23 +588,13 @@ export default function App() {
     if (board) applyNextConfig(board.config, board.id)
   }
 
-  function renameActiveBoard() {
-    if (!activeBoardId) return
-    const board = savedBoards.find((b) => b.id === activeBoardId)
-    if (!board) return
-    const name = window.prompt('Board name', board.name)?.trim()
-    if (!name) return
-    setSavedBoards((prev) =>
-      prev.map((b) => (b.id === board.id ? { ...b, name } : b)),
-    )
-  }
-
   function deleteActiveBoard() {
     if (!activeBoardId) return
     const board = savedBoards.find((b) => b.id === activeBoardId)
     if (!board) return
     if (!window.confirm(`Delete "${board.name}"?`)) return
     setSavedBoards((prev) => prev.filter((b) => b.id !== board.id))
+    closeBoardEditor()
     applyNextConfig(createDefaultConfig('km40'), null)
   }
 
@@ -605,6 +672,12 @@ export default function App() {
     top: layerMenuPos?.top ?? 0,
   }
 
+  const boardPopoverStyle: CSSProperties = {
+    visibility: boardPopoverPos ? 'visible' : 'hidden',
+    left: boardPopoverPos?.left ?? 0,
+    top: boardPopoverPos?.top ?? 0,
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -641,22 +714,13 @@ export default function App() {
             </select>
           </label>
           {activeBoardId && (
-            <>
-              <button
-                type="button"
-                className="nav-btn"
-                onClick={renameActiveBoard}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                className="nav-btn"
-                onClick={deleteActiveBoard}
-              >
-                Delete
-              </button>
-            </>
+            <button
+              type="button"
+              className="nav-btn"
+              onClick={deleteActiveBoard}
+            >
+              Delete
+            </button>
           )}
           <button
             type="button"
@@ -705,8 +769,23 @@ export default function App() {
       <main className="workspace">
         <section className="board-stage">
           <div className="board-stage__intro">
-            <h1>{layout.name}</h1>
-            <p>{layout.description}</p>
+            <h1 className={activeBoard ? 'board-stage__title' : undefined}>
+              {activeBoard ? (
+                <button
+                  type="button"
+                  className="board-stage__title-btn"
+                  onClick={(e) =>
+                    openBoardEditor(e.currentTarget.getBoundingClientRect())
+                  }
+                  title="Rename board"
+                >
+                  {activeBoard.name}
+                </button>
+              ) : (
+                layout.name
+              )}
+            </h1>
+            <p>{activeBoard ? `${layout.name} · ` : ''}{layout.description}</p>
           </div>
 
           <LayerTabs
@@ -723,6 +802,7 @@ export default function App() {
           <Keyboard
             layout={layout}
             bindings={activeLayer.bindings}
+            layerNumbers={layerNumbers}
             selectedKeyId={config.selectedKeyId}
             onSelectKey={selectKey}
           />
@@ -812,6 +892,62 @@ export default function App() {
               type="button"
               className="nav-btn nav-btn--accent"
               onClick={saveLayerRename}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+
+      {boardEditor && activeBoard && (
+        <div
+          ref={boardPopoverRef}
+          className="popover key-popover board-popover"
+          style={boardPopoverStyle}
+          role="dialog"
+          aria-label="Rename board"
+        >
+          <header className="key-popover__header">
+            <div>
+              <h2>Rename board</h2>
+              <p>Only the saved board name changes; the .kbd export is unaffected.</p>
+            </div>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Close board editor"
+              onClick={() => closeBoardEditor(true)}
+            >
+              ×
+            </button>
+          </header>
+          <label className="field">
+            <span>Board name</span>
+            <input
+              autoFocus
+              value={boardDraft}
+              onChange={(e) => setBoardDraft(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  saveBoardRename()
+                }
+              }}
+            />
+          </label>
+          <div className="popover-actions">
+            <button
+              type="button"
+              className="nav-btn"
+              onClick={() => closeBoardEditor(true)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="nav-btn nav-btn--accent"
+              onClick={saveBoardRename}
             >
               Save
             </button>
