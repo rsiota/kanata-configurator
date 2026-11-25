@@ -17,8 +17,12 @@ export type KeyAction =
 export interface PhysicalKey {
   /** Unique id within the layout, e.g. "0,0" */
   id: string
+  /** Physical row from the top (0-based) */
   row: number
+  /** Matrix column from the keyboard firmware (0-based) */
   col: number
+  /** Physical x position in key units — independent of the matrix column */
+  x: number
   /** Key unit width (1 = 1u) */
   w: number
   /** Optional label shown on the keycap face */

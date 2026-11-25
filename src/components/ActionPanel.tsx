@@ -1,7 +1,7 @@
 import type { KeyAction, Layer, PhysicalKey } from '../lib/types'
 
 interface ActionPanelProps {
-  keyDef: PhysicalKey | null
+  keyDef: PhysicalKey
   action: KeyAction | undefined
   layers: Layer[]
   onChange: (action: KeyAction) => void
@@ -33,29 +33,14 @@ export function ActionPanel({
   layers,
   onChange,
 }: ActionPanelProps) {
-  if (!keyDef) {
-    return (
-      <aside className="panel action-panel action-panel--empty">
-        <p>Select a key on the board to edit its binding.</p>
-      </aside>
-    )
-  }
-
   const type = action?.type ?? 'key'
 
   return (
-    <aside className="panel action-panel">
-      <header className="action-panel__header">
-        <h2>{keyDef.label}</h2>
-        <p>
-          Matrix <code>{keyDef.id}</code> · defsrc <code>{keyDef.defsrc}</code>
-        </p>
-      </header>
-
+    <div className="action-panel">
       <label className="field">
         <span>Action</span>
         <select
-          value={type === 'raw' || type === 'multi' ? type : type}
+          value={type}
           onChange={(e) => {
             const next = e.target.value as KeyAction['type']
             if (next === 'key') {
@@ -211,10 +196,10 @@ export function ActionPanel({
           <span>Raw expression</span>
           <input
             value={action.expr}
-            onChange={(e) => onChange({ type: 'raw', expr: e.target.value })}
+            onChange={(e) => onChange({ ...action, expr: e.target.value })}
           />
         </label>
       )}
-    </aside>
+    </div>
   )
 }

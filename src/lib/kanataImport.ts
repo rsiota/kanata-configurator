@@ -23,6 +23,8 @@ function layoutFromDefsrcRows(
         id: `${row},${col}`,
         row,
         col,
+        // Imported defsrc rows have no width information: assume 1u keys.
+        x: col,
         w: 1,
         label: defsrc,
         defsrc,
