@@ -10,6 +10,7 @@ const KEY_LABELS: Record<string, string> = {
   caps: 'Caps',
   grv: '`',
   non_us_pound: '#',
+  nonuspound: '#',
   nuhs: '#',
   lsft: 'Shift',
   rsft: 'Shift',
@@ -37,6 +38,9 @@ const SHIFTED_LABELS: Record<SymbolLayout, Record<string, string>> = {
   us: {
     '`': '~',
     grv: '~',
+    non_us_pound: '~',
+    nonuspound: '~',
+    nuhs: '~',
     '1': '!',
     '2': '@',
     '3': '#',
@@ -61,6 +65,9 @@ const SHIFTED_LABELS: Record<SymbolLayout, Record<string, string>> = {
   uk: {
     '`': '¬',
     grv: '¬',
+    non_us_pound: '~',
+    nonuspound: '~',
+    nuhs: '~',
     '1': '!',
     '2': '"',
     '3': '£',
@@ -88,7 +95,7 @@ function shiftedLabel(code: string, symbolLayout: SymbolLayout): string | null {
   const match = /^(?:S|LSFT|RSFT)-(.*)$/.exec(code)
   if (!match) return null
 
-  const base = match[1]
+  const base = match[1].toLowerCase()
   const symbol = SHIFTED_LABELS[symbolLayout][base]
   if (symbol) return symbol
   if (/^[a-z]$/.test(base)) return base.toUpperCase()

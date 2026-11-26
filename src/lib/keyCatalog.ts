@@ -21,10 +21,24 @@ export interface KeyOption {
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'.split('')
 const NUMBERS = '1234567890'.split('')
-const SYMBOLS = ['grv', '-', '=', '[', ']', '\\', ';', "'", ',', '.', '/', 'non_us_pound']
+const SYMBOLS = [
+  'grv',
+  '-',
+  '=',
+  '[',
+  ']',
+  '\\',
+  ';',
+  "'",
+  ',',
+  '.',
+  '/',
+  'non_us_pound',
+]
 
 const SHIFTED_BASES = [
   'grv',
+  'non_us_pound',
   ...NUMBERS,
   '-',
   '=',
@@ -72,6 +86,7 @@ const FUNCTION = Array.from({ length: 12 }, (_, i) => `f${i + 1}`)
 
 const SHIFTED_KEYWORDS: Record<string, string> = {
   'S-grv': 'tilde not grave',
+  'S-non_us_pound': 'tilde not hash pound',
   'S-1': 'exclamation bang',
   'S-2': 'at sign double quote',
   'S-3': 'pound sterling hash number three',
@@ -107,7 +122,7 @@ export function keyCatalog(): KeyOption[] {
       ...option,
       keywords:
         option.code === 'non_us_pound'
-          ? 'hash pound tilde iso pound non us'
+          ? 'hash pound number sign iso'
           : option.code === 'grv'
             ? 'grave backtick tick'
             : option.code === 'ret'

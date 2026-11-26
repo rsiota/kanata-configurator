@@ -200,6 +200,14 @@ export function importKanataConfig(
   }
 
   const defsrcKeys = defsrcForm.slice(1).map(atom)
+  const invalidDefsrc = defsrcKeys.filter((key) =>
+    /^(XX|_)$/i.test(key),
+  )
+  if (invalidDefsrc.length) {
+    throw new Error(
+      `Invalid key in (defsrc): ${invalidDefsrc[0]}. defsrc must list physical keys; use XX only in layer bindings.`,
+    )
+  }
   const rows = parseDefsrcRows(source, defsrcForm)
   const flatFromRows = rows.flat()
   if (flatFromRows.length !== defsrcKeys.length) {

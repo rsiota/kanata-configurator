@@ -19,10 +19,37 @@ function shellQuote(value) {
 }
 
 const quotedConfigPath = shellQuote(configPath)
-const checkCommand = process.env.KANATA_CHECK_COMMAND ?? ''
+
+async function resolveCheckCommand() {
+  if (process.env.KANATA_CHECK_COMMAND !== undefined) {
+    return process.env.KANATA_CHECK_COMMAND
+  }
+
+  // Fail before writing a config that Kanata will reject. launchd/kickstart can
+  // report success even when the daemon exits immediately after parsing fails.
+  for (const candidate of [
+    '/opt/homebrew/bin/kanata',
+    '/usr/local/bin/kanata',
+    'kanata',
+  ]) {
+    try {
+      await run(`${shellQuote(candidate)} --version`)
+      return `${shellQuote(candidate)} --check -c {config}`
+    } catch {
+      // Try the next known location.
+    }
+  }
+  return ''
+}
+
+const checkCommand = await resolveCheckCommand()
 const restartCommand =
   process.env.KANATA_RESTART_COMMAND ??
   `pkill -x kanata; nohup kanata -c ${quotedConfigPath} >/tmp/kanata.log 2>&1 &`
+const verifyCommand =
+  process.env.KANATA_VERIFY_COMMAND ?? 'pgrep -x kanata >/dev/null'
+const verifyDelayMs = Number(process.env.KANATA_VERIFY_DELAY_MS ?? '12000')
+const logPath = process.env.KANATA_LOG_PATH ?? '/var/log/kanata.log'
 const token = process.env.KANATA_BRIDGE_TOKEN ?? ''
 const extraOrigins = new Set(
   (process.env.KANATA_BRIDGE_ORIGINS ?? '')
@@ -60,6 +87,23 @@ async function readBody(req) {
     if (data.length > maxBodyBytes) throw new Error('Payload too large')
   }
   return JSON.parse(data || '{}')
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function recentLogError() {
+  try {
+    const lines = (await fs.readFile(logPath, 'utf8')).trim().split('\n')
+    const recent = lines.slice(-40)
+    const error = recent.reverse().find((line) =>
+      /error|failed|permission|denied/i.test(line),
+    )
+    return error?.trim() ?? ''
+  } catch {
+    return ''
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -141,6 +185,23 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    // launchctl kickstart can return success even when the daemon exits a few
+    // seconds later. Confirm a kanata process survived the restart.
+    if (restartCommand && verifyCommand) {
+      await wait(verifyDelayMs)
+      try {
+        await run(verifyCommand)
+      } catch {
+        send(res, 502, {
+          error: 'Config written, but Kanata is not running after restart',
+          detail: await recentLogError(),
+          stdout,
+          stderr,
+        })
+        return
+      }
+    }
+
     send(res, 200, { ok: true, configPath, stdout, stderr })
   } catch (err) {
     send(res, 400, {
@@ -154,6 +215,7 @@ server.listen(port, '127.0.0.1', () => {
   console.log(`  config:  ${configPath}`)
   console.log(`  check:   ${checkCommand || '(disabled)'}`)
   console.log(`  restart: ${restartCommand || '(disabled)'}`)
+  console.log(`  verify:  ${restartCommand ? verifyCommand || '(disabled)' : '(no restart)'}`)
   console.log(`  token:   ${token ? 'required' : 'not set'}`)
   if (extraOrigins.size) {
     console.log(`  origins: ${[...extraOrigins].join(', ')}`)
