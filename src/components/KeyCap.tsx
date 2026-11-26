@@ -16,12 +16,23 @@ interface ActionLabelProps {
   layerNumbers: Record<string, number>
 }
 
+const MODIFIER_CODES = new Set([
+  'lctl',
+  'rctl',
+  'lsft',
+  'rsft',
+  'lalt',
+  'ralt',
+  'lmet',
+  'rmet',
+])
+
 function ShiftLegend({ side }: { side: 'l' | 'r' }) {
   const isLeft = side === 'l'
 
   return (
     <span
-      className="keycap__shift"
+      className="keycap__mod-icon keycap__shift"
       role="img"
       aria-label={`${isLeft ? 'Left' : 'Right'} Shift`}
     >
@@ -61,7 +72,7 @@ function AltLegend({ side }: { side: 'l' | 'r' }) {
 
   return (
     <span
-      className="keycap__alt"
+      className="keycap__mod-icon keycap__alt"
       role="img"
       aria-label={`${isLeft ? 'Left' : 'Right'} Alt`}
     >
@@ -75,6 +86,38 @@ function AltLegend({ side }: { side: 'l' | 'r' }) {
       )}
       <span className="keycap__alt-glyph" aria-hidden="true">
         ⌥
+      </span>
+      {!isLeft && (
+        <span
+          className="keycap__side keycap__side--right"
+          aria-hidden="true"
+        >
+          R
+        </span>
+      )}
+    </span>
+  )
+}
+
+function MetaLegend({ side }: { side: 'l' | 'r' }) {
+  const isLeft = side === 'l'
+
+  return (
+    <span
+      className="keycap__mod-icon keycap__meta"
+      role="img"
+      aria-label={`${isLeft ? 'Left' : 'Right'} Meta`}
+    >
+      {isLeft && (
+        <span
+          className="keycap__side keycap__side--left"
+          aria-hidden="true"
+        >
+          L
+        </span>
+      )}
+      <span className="keycap__meta-glyph" aria-hidden="true">
+        ⌘
       </span>
       {!isLeft && (
         <span
@@ -115,6 +158,8 @@ function ActionLabel({
       if (action.code === 'rsft') return <ShiftLegend side="r" />
       if (action.code === 'lalt') return <AltLegend side="l" />
       if (action.code === 'ralt') return <AltLegend side="r" />
+      if (action.code === 'lmet') return <MetaLegend side="l" />
+      if (action.code === 'rmet') return <MetaLegend side="r" />
       return keyLabel(action.code)
     case 'transparent':
       return '▽'
@@ -168,6 +213,9 @@ export function KeyCap({
 }: KeyCapProps) {
   const type = action?.type ?? 'key'
   const isTapHold = action?.type === 'tap-hold'
+  const isModifier =
+    action?.type === 'key' &&
+    MODIFIER_CODES.has(action.code.toLowerCase())
 
   const style: CSSProperties = {
     left: `calc(${keyDef.x} * var(--u))`,
@@ -179,7 +227,7 @@ export function KeyCap({
   return (
     <button
       type="button"
-      className={`keycap keycap--${type}${selected ? ' is-selected' : ''}`}
+      className={`keycap keycap--${type}${isModifier ? ' keycap--modifier' : ''}${selected ? ' is-selected' : ''}`}
       style={style}
       onClick={(e) => onSelect(keyDef.id, e.currentTarget.getBoundingClientRect())}
       aria-pressed={selected}

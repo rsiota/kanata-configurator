@@ -8,6 +8,9 @@
   --line: #d9dee6;
   --line-strong: #aeb8c6;
   --key-face: #ffffff;
+  --wash-dual: color-mix(in oklch, #4a86c8 16%, var(--key-face));
+  --wash-mod: color-mix(in oklch, #4f9b6a 15%, var(--key-face));
+  --wash-layer: color-mix(in oklch, #c58a3d 15%, var(--key-face));
   --shadow-rgb: 20, 26, 36;
   --radius: 3px;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo,
@@ -152,6 +155,24 @@ code {
 
 .nav-btn:hover {
   border-color: var(--ink);
+}
+
+.nav-btn--toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-btn--toggle::before {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+}
+
+.nav-btn--toggle[aria-pressed='true']::before {
+  background: var(--ink);
 }
 
 .nav-btn--accent {
@@ -362,7 +383,7 @@ code {
   padding: calc(var(--u) * 0.06);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: var(--key-face);
+  background: var(--key-bg, var(--key-face));
   box-shadow: 0 1px 0 rgba(var(--shadow-rgb), 0.1);
   color: var(--ink);
   transition:
@@ -393,10 +414,29 @@ code {
 }
 
 .keycap--none {
-  background: var(--paper);
+  --key-bg: var(--paper);
   border-color: var(--line-strong);
   border-style: dashed;
   box-shadow: none;
+}
+
+.app--color .keycap--tap-hold,
+.app--color .keycap--multi {
+  --key-bg: var(--wash-dual);
+}
+
+.app--color .keycap--tap-hold:has(.keycap__layer-num),
+.app--color .keycap--multi:has(.keycap__layer-num) {
+  --key-bg: var(--wash-layer);
+}
+
+.app--color .keycap--modifier {
+  --key-bg: var(--wash-mod);
+}
+
+.app--color .keycap--layer-toggle,
+.app--color .keycap--layer-switch {
+  --key-bg: var(--wash-layer);
 }
 
 .keycap--layer-toggle,
@@ -422,17 +462,17 @@ code {
   gap: 0.3rem;
 }
 
-.keycap__legend--stack:has(.keycap__shift),
-.keycap__legend--stack:has(.keycap__alt) {
+.keycap__legend--stack:has(.keycap__mod-icon) {
   gap: 0.34rem;
 }
 
-.keycap__shift,
-.keycap__alt {
+.keycap__mod-icon {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 2.2em;
+  height: 2.2em;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -454,11 +494,12 @@ code {
 }
 
 .keycap__shift-arrow {
-  width: 2.1em;
-  height: 2.1em;
+  width: 2.2em;
+  height: 2.2em;
 }
 
-.keycap__alt-glyph {
+.keycap__alt-glyph,
+.keycap__meta-glyph {
   font-size: 2.2em;
   line-height: 0.9;
 }

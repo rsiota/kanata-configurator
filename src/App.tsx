@@ -133,6 +133,7 @@ export default function App() {
     () => restored?.config ?? createDefaultConfig('km40'),
   )
   const [notice, setNotice] = useState<Notice>(null)
+  const [colorCoded, setColorCoded] = useState(true)
   const [sourceOpen, setSourceOpen] = useState(false)
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const [popoverPos, setPopoverPos] = useState<Position | null>(null)
@@ -679,7 +680,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={colorCoded ? 'app app--color' : 'app'}>
       <header className="topbar">
         <div className="brand">
           <span className="brand__mark">
@@ -722,6 +723,15 @@ export default function App() {
               Delete
             </button>
           )}
+          <button
+            type="button"
+            className="nav-btn nav-btn--toggle"
+            aria-pressed={colorCoded}
+            title="Blue: dual function · Green: modifiers · Amber: layer keys"
+            onClick={() => setColorCoded((on) => !on)}
+          >
+            Colour code
+          </button>
           <button
             type="button"
             className="nav-btn"
