@@ -61,6 +61,10 @@ by legend, Kanata code, or description (`£`, `pound`, or `S-3` all find the
 same key). Selecting a key writes the corresponding Kanata action; it appears
 on the board using the same legend rules.
 
+Layer actions can create a layer inline: choose **+ New layer…** in the layer
+dropdown, name it, and the binding points to the new layer immediately. The
+hold half of a tap-hold can also be changed to a key or layer action.
+
 ### Root LaunchDaemon without a password prompt
 
 If Kanata runs as a system daemon, `launchctl kickstart` needs root. Grant only

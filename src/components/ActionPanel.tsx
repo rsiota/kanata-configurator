@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react'
 import type { SymbolLayout } from '../lib/displaySettings'
 import type { KeyAction, Layer, PhysicalKey } from '../lib/types'
 import { KeyPicker } from './KeyPicker'
@@ -7,6 +8,7 @@ interface ActionPanelProps {
   action: KeyAction | undefined
   layers: Layer[]
   symbolLayout: SymbolLayout
+  onAddLayer: (name?: string) => Layer
   onChange: (action: KeyAction) => void
 }
 
@@ -15,9 +17,42 @@ export function ActionPanel({
   action,
   layers,
   symbolLayout,
+  onAddLayer,
   onChange,
 }: ActionPanelProps) {
   const type = action?.type ?? 'key'
+
+  function chooseLayer(select: (name: string) => void) {
+    return (event: ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value
+      if (value !== '__new__') {
+        select(value)
+        return
+      }
+
+      const name = window
+        .prompt('New layer name', `Layer ${layers.length + 1}`)
+        ?.trim()
+      if (!name) return
+      select(onAddLayer(name).name)
+    }
+  }
+
+  function layerSelect(current: string, select: (name: string) => void) {
+    return (
+      <label className="field">
+        <span>Layer</span>
+        <select value={current} onChange={chooseLayer(select)}>
+          {layers.map((layer) => (
+            <option key={layer.id} value={layer.name}>
+              {layer.name}
+            </option>
+          ))}
+          <option value="__new__">+ New layer…</option>
+        </select>
+      </label>
+    )
+  }
 
   return (
     <div className="action-panel">
@@ -77,31 +112,18 @@ export function ActionPanel({
         />
       )}
 
-      {(type === 'layer-toggle' || type === 'layer-switch') && (
-        <label className="field">
-          <span>Layer</span>
-          <select
-            value={
-              action &&
-              (action.type === 'layer-toggle' || action.type === 'layer-switch')
-                ? action.layer
-                : layers[0].name
-            }
-            onChange={(e) =>
-              onChange({
-                type: type === 'layer-toggle' ? 'layer-toggle' : 'layer-switch',
-                layer: e.target.value,
-              })
-            }
-          >
-            {layers.map((layer) => (
-              <option key={layer.id} value={layer.name}>
-                {layer.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+      {(type === 'layer-toggle' || type === 'layer-switch') &&
+        layerSelect(
+          action &&
+            (action.type === 'layer-toggle' || action.type === 'layer-switch')
+            ? action.layer
+            : layers[0].name,
+          (layer) =>
+            onChange({
+              type: type as 'layer-toggle' | 'layer-switch',
+              layer,
+            }),
+        )}
 
       {type === 'tap-hold' && action?.type === 'tap-hold' && (
         <>
@@ -115,20 +137,61 @@ export function ActionPanel({
           />
           <label className="field">
             <span>Hold</span>
-            <input
+            <select
               value={
-                action.hold.type === 'layer-toggle'
-                  ? `layer-toggle:${action.hold.layer}`
-                  : action.hold.type === 'key'
-                    ? action.hold.code
-                    : action.hold.type === 'multi'
-                      ? '(multi …)'
-                      : action.hold.type
+                action.hold.type === 'key' ||
+                action.hold.type === 'layer-toggle' ||
+                action.hold.type === 'layer-switch' ||
+                action.hold.type === 'none'
+                  ? action.hold.type
+                  : 'imported'
               }
-              readOnly
-              title="Hold action imported from .kbd"
-            />
+              onChange={(e) => {
+                const value = e.target.value
+                const hold: KeyAction =
+                  value === 'key'
+                    ? { type: 'key', code: keyDef.defsrc }
+                    : value === 'layer-toggle' ||
+                        value === 'layer-switch'
+                      ? {
+                          type: value,
+                          layer: layers[1]?.name ?? layers[0].name,
+                        }
+                      : value === 'none'
+                        ? { type: 'none' }
+                        : action.hold
+                onChange({ ...action, hold })
+              }}
+            >
+              <option value="key">Key</option>
+              <option value="layer-toggle">Layer toggle</option>
+              <option value="layer-switch">Layer switch</option>
+              <option value="none">None (XX)</option>
+              {!['key', 'layer-toggle', 'layer-switch', 'none'].includes(
+                action.hold.type,
+              ) && <option value="imported">Imported — keep as-is</option>}
+            </select>
           </label>
+
+          {action.hold.type === 'key' && (
+            <KeyPicker
+              label="Hold key"
+              value={action.hold.code}
+              symbolLayout={symbolLayout}
+              onSelect={(code) =>
+                onChange({ ...action, hold: { type: 'key', code } })
+              }
+            />
+          )}
+
+          {(action.hold.type === 'layer-toggle' ||
+            action.hold.type === 'layer-switch') &&
+            layerSelect(action.hold.layer, (layer) => {
+              const holdType = action.hold.type as
+                | 'layer-toggle'
+                | 'layer-switch'
+              onChange({ ...action, hold: { type: holdType, layer } })
+            })}
           <div className="field-row">
             <label className="field">
               <span>Tap ms</span>

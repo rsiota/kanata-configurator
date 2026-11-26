@@ -639,22 +639,28 @@ export default function App() {
     setAnchor(rect)
   }
 
+  function createLayer(requestedName?: string): Layer {
+    const base = requestedName?.trim() || `Layer ${config.layers.length + 1}`
+    let name = base
+    let suffix = 2
+    while (config.layers.some((layer) => layer.name === name)) {
+      name = `${base} ${suffix++}`
+    }
+
+    const layer: Layer = {
+      id: uniqueId('layer'),
+      name,
+      bindings: Object.fromEntries(
+        layout.keys.map((key) => [key.id, { type: 'transparent' as const }]),
+      ),
+    }
+    setConfig((prev) => ({ ...prev, layers: [...prev.layers, layer] }))
+    return layer
+  }
+
   function addLayer() {
-    setConfig((prev) => {
-      const index = prev.layers.length + 1
-      const layer: Layer = {
-        id: `layer-${index}`,
-        name: `Layer ${index}`,
-        bindings: Object.fromEntries(
-          layout.keys.map((key) => [key.id, { type: 'transparent' as const }]),
-        ),
-      }
-      return {
-        ...prev,
-        layers: [...prev.layers, layer],
-        activeLayerId: layer.id,
-      }
-    })
+    const layer = createLayer()
+    setConfig((prev) => ({ ...prev, activeLayerId: layer.id }))
   }
 
   function applyNextConfig(next: ProjectConfig, boardId: string | null) {
@@ -988,6 +994,7 @@ export default function App() {
             action={activeLayer.bindings[selectedKey.id]}
             layers={config.layers}
             symbolLayout={displaySettings.symbolLayout}
+            onAddLayer={createLayer}
             onChange={setBinding}
           />
         </div>
