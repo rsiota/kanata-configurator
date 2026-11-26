@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { CSSProperties } from 'react'
 import { ActionPanel } from './components/ActionPanel'
 import { Keyboard } from './components/Keyboard'
@@ -13,7 +20,7 @@ import {
 } from './lib/boardLibrary'
 import { createDefaultConfig } from './lib/defaultConfig'
 import { exportKanataConfig } from './lib/kanataExport'
-import { importKanataConfig } from './lib/kanataImport'
+import { importKanataConfig, type ImportResult } from './lib/kanataImport'
 import { resolveLayout } from './lib/resolveLayout'
 import type { KeyAction, Layer, ProjectConfig, SavedBoard } from './lib/types'
 
@@ -135,6 +142,7 @@ export default function App() {
   const [notice, setNotice] = useState<Notice>(null)
   const [colorCoded, setColorCoded] = useState(true)
   const [sourceOpen, setSourceOpen] = useState(false)
+  const [sourceDraft, setSourceDraft] = useState('')
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const [popoverPos, setPopoverPos] = useState<Position | null>(null)
   const [layerEditor, setLayerEditor] = useState<{
@@ -215,6 +223,57 @@ export default function App() {
     setBoardEditor(null)
     setBoardPopoverPos(null)
     if (restoreFocus) lastBoardTriggerRef.current?.focus()
+  }
+
+  const closeSource = useCallback(() => {
+    if (
+      sourceDraft !== source &&
+      !window.confirm('Discard unsaved source edits?')
+    ) {
+      return
+    }
+    setSourceOpen(false)
+  }, [sourceDraft, source])
+
+  function applySourceEdit(text: string): string | null {
+    let result: ImportResult
+    try {
+      result = importKanataConfig(text, { name: activeBoard?.name })
+    } catch (err) {
+      return err instanceof Error ? err.message : 'Failed to parse source'
+    }
+
+    const imported = result.config
+    const id = activeBoardId ?? imported.layoutId
+    const customLayout = imported.customLayout
+      ? { ...imported.customLayout, id }
+      : undefined
+    const next: ProjectConfig = {
+      ...imported,
+      layoutId: id,
+      customLayout,
+      selectedKeyId: null,
+    }
+
+    if (activeBoardId) {
+      setSavedBoards((prev) =>
+        prev.map((b) =>
+          b.id === activeBoardId
+            ? { ...b, config: next, savedAt: Date.now() }
+            : b,
+        ),
+      )
+    }
+
+    applyNextConfig(next, activeBoardId)
+    setSourceOpen(false)
+    setNotice({
+      text: result.warnings.length
+        ? `Source applied with notes: ${result.warnings.join(' · ')}`
+        : `Source applied${activeBoard ? ` to "${activeBoard.name}"` : ''}`,
+      tone: 'info',
+    })
+    return null
   }
 
   function openBoardEditor(rect: Anchor) {
@@ -478,7 +537,7 @@ export default function App() {
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
-      if (sourceOpen) setSourceOpen(false)
+      if (sourceOpen) closeSource()
       else if (boardEditor) closeBoardEditor(true)
       else if (layerEditor) closeLayerEditor(true)
       else if (layerMenu) closeLayerMenu(true)
@@ -491,7 +550,14 @@ export default function App() {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [config.selectedKeyId, layerEditor, layerMenu, boardEditor, sourceOpen])
+  }, [
+    config.selectedKeyId,
+    layerEditor,
+    layerMenu,
+    boardEditor,
+    sourceOpen,
+    closeSource,
+  ])
 
   function updateActiveLayer(mutator: (layer: Layer) => Layer) {
     setConfig((prev) => ({
@@ -749,7 +815,10 @@ export default function App() {
             type="button"
             className="nav-btn nav-btn--accent"
             aria-expanded={sourceOpen}
-            onClick={() => setSourceOpen(true)}
+            onClick={() => {
+              setSourceDraft(source)
+              setSourceOpen(true)
+            }}
           >
             Source
           </button>
@@ -1024,7 +1093,13 @@ export default function App() {
       )}
 
       {sourceOpen && (
-        <SourcePanel source={source} onClose={() => setSourceOpen(false)} />
+        <SourcePanel
+          source={source}
+          draft={sourceDraft}
+          onDraftChange={setSourceDraft}
+          onApply={applySourceEdit}
+          onClose={closeSource}
+        />
       )}
     </div>
   )
