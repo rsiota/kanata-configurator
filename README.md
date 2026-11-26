@@ -1,4 +1,97 @@
-# React + TypeScript + Vite
+# Layr — Kanata configurator
+
+A visual editor for Kanata keymaps. Build a board, edit bindings, and export
+`kanata.kbd`.
+
+## Live reload bridge (macOS)
+
+The **Restart Kanata** button posts the current source to a small local service,
+which writes `kanata.kbd` and restarts Kanata so you can test as you edit. A
+browser cannot restart a system service on its own, so the bridge must be
+running:
+
+```sh
+npm run bridge
+```
+
+By default it writes to `~/.config/kanata/kanata.kbd` and relaunches the
+`kanata` binary directly with that config. Override with environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `KANATA_CONFIG_PATH` | `~/.config/kanata/kanata.kbd` | Where the generated config is written |
+| `KANATA_CHECK_COMMAND` | unset | Optional validation before writing; `{config}` is substituted with the config path |
+| `KANATA_RESTART_COMMAND` | kill and relaunch `kanata -c <config>` | Command run after writing; empty disables restart |
+| `KANATA_BRIDGE_TOKEN` | unset | Optional shared secret sent from the app as `x-bridge-token` |
+| `KANATA_BRIDGE_ORIGINS` | unset | Comma-separated extra browser origins allowed by CORS |
+| `KANATA_BRIDGE_PORT` | `8787` | Loopback port |
+
+If the button reports "Cannot reach the bridge", check that `npm run bridge` is
+running and that the app is opened from `localhost` or `127.0.0.1`. If you use
+another hostname, add the exact origin (for example
+`http://192.168.1.10:5173`) to `KANATA_BRIDGE_ORIGINS`. An HTTPS page cannot
+call this HTTP bridge; use the local dev URL instead.
+
+Example with a launchd service instead:
+
+```sh
+KANATA_RESTART_COMMAND='launchctl kickstart -k gui/$(id -u)/com.example.kanata' \
+KANATA_BRIDGE_TOKEN=my-secret npm run bridge
+```
+
+The bridge binds to `127.0.0.1` and only accepts browser origins from localhost.
+Set a token if other local processes could reach the port. In the app, use the
+gear next to **Restart Kanata** to change the bridge URL or token, and to choose
+UK or US shifted-symbol legends; these are stored in your browser's local
+storage.
+
+Keycaps show UK shifted symbols by default (`S-3` → `£`). Switch to US in the
+gear menu if needed. This changes legends only — the Kanata code sent to the
+config is unchanged. Prefer physical-key actions such as `S-3` over the Kanata
+`unicode` action: Unicode input is not reliably accepted by all macOS apps.
+
+Click a keycap to open the action editor. The **Output key** and **Tap key**
+fields open a searchable key picker with grouped, keycap-style buttons. Search
+by legend, Kanata code, or description (`£`, `pound`, or `S-3` all find the
+same key). Selecting a key writes the corresponding Kanata action; it appears
+on the board using the same legend rules.
+
+### Root LaunchDaemon without a password prompt
+
+If Kanata runs as a system daemon, `launchctl kickstart` needs root. Grant only
+that exact command via sudoers:
+
+```sh
+sudo visudo -f /etc/sudoers.d/kanata-layr-bridge
+```
+
+Add one line, replacing `ruben` with your username:
+
+```
+ruben ALL=(root) NOPASSWD: /bin/launchctl kickstart -k system/dev.kanata.daemon
+```
+
+Then point the bridge at the daemon's config and restart command:
+
+```sh
+KANATA_CONFIG_PATH=~/.config/kanata/kanata-off.kbd \
+KANATA_CHECK_COMMAND='/opt/homebrew/bin/kanata --check -c {config}' \
+KANATA_RESTART_COMMAND='sudo -n /bin/launchctl kickstart -k system/dev.kanata.daemon' \
+npm run bridge
+```
+
+The check is strongly recommended: without it, a restart can succeed even when
+Kanata rejects the config, so the button would report success while your keymap
+never changes.
+
+If you would rather get a macOS password dialog each time, use this restart
+command instead:
+
+```sh
+KANATA_RESTART_COMMAND='osascript -e '"'"'do shell script "launchctl kickstart -k system/dev.kanata.daemon" with administrator privileges'"'"''
+```
+
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

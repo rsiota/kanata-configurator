@@ -1,36 +1,20 @@
+import type { SymbolLayout } from '../lib/displaySettings'
 import type { KeyAction, Layer, PhysicalKey } from '../lib/types'
+import { KeyPicker } from './KeyPicker'
 
 interface ActionPanelProps {
   keyDef: PhysicalKey
   action: KeyAction | undefined
   layers: Layer[]
+  symbolLayout: SymbolLayout
   onChange: (action: KeyAction) => void
 }
-
-const COMMON_KEYS = [
-  'esc',
-  'tab',
-  'ret',
-  'bspc',
-  'spc',
-  'lsft',
-  'lctl',
-  'lalt',
-  'lmet',
-  'a',
-  's',
-  'd',
-  'f',
-  'q',
-  'w',
-  'e',
-  'r',
-]
 
 export function ActionPanel({
   keyDef,
   action,
   layers,
+  symbolLayout,
   onChange,
 }: ActionPanelProps) {
   const type = action?.type ?? 'key'
@@ -85,19 +69,12 @@ export function ActionPanel({
       </label>
 
       {type === 'key' && (
-        <label className="field">
-          <span>Output key</span>
-          <input
-            list="common-keys"
-            value={action?.type === 'key' ? action.code : keyDef.defsrc}
-            onChange={(e) => onChange({ type: 'key', code: e.target.value })}
-          />
-          <datalist id="common-keys">
-            {COMMON_KEYS.map((k) => (
-              <option key={k} value={k} />
-            ))}
-          </datalist>
-        </label>
+        <KeyPicker
+          label="Output key"
+          value={action?.type === 'key' ? action.code : keyDef.defsrc}
+          symbolLayout={symbolLayout}
+          onSelect={(code) => onChange({ type: 'key', code })}
+        />
       )}
 
       {(type === 'layer-toggle' || type === 'layer-switch') && (
@@ -128,20 +105,14 @@ export function ActionPanel({
 
       {type === 'tap-hold' && action?.type === 'tap-hold' && (
         <>
-          <label className="field">
-            <span>Tap key</span>
-            <input
-              value={
-                action.tap.type === 'key' ? action.tap.code : keyDef.defsrc
-              }
-              onChange={(e) =>
-                onChange({
-                  ...action,
-                  tap: { type: 'key', code: e.target.value },
-                })
-              }
-            />
-          </label>
+          <KeyPicker
+            label="Tap key"
+            value={action.tap.type === 'key' ? action.tap.code : keyDef.defsrc}
+            symbolLayout={symbolLayout}
+            onSelect={(code) =>
+              onChange({ ...action, tap: { type: 'key', code } })
+            }
+          />
           <label className="field">
             <span>Hold</span>
             <input

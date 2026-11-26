@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import type { SymbolLayout } from '../lib/displaySettings'
 import { actionSource, keyLabel } from '../lib/keyDisplay'
 import type { KeyAction, PhysicalKey } from '../lib/types'
 
@@ -6,6 +7,7 @@ interface KeyCapProps {
   keyDef: PhysicalKey
   action: KeyAction | undefined
   layerNumbers: Record<string, number>
+  symbolLayout: SymbolLayout
   selected: boolean
   onSelect: (id: string, rect: DOMRect) => void
 }
@@ -14,6 +16,7 @@ interface ActionLabelProps {
   action: KeyAction | undefined
   fallback: string
   layerNumbers: Record<string, number>
+  symbolLayout: SymbolLayout
 }
 
 const MODIFIER_CODES = new Set([
@@ -149,6 +152,7 @@ function ActionLabel({
   action,
   fallback,
   layerNumbers,
+  symbolLayout,
 }: ActionLabelProps): ReactNode {
   if (!action) return fallback
 
@@ -160,7 +164,7 @@ function ActionLabel({
       if (action.code === 'ralt') return <AltLegend side="r" />
       if (action.code === 'lmet') return <MetaLegend side="l" />
       if (action.code === 'rmet') return <MetaLegend side="r" />
-      return keyLabel(action.code)
+      return keyLabel(action.code, symbolLayout)
     case 'transparent':
       return '▽'
     case 'none':
@@ -175,12 +179,14 @@ function ActionLabel({
             action={action.tap}
             fallback="·"
             layerNumbers={layerNumbers}
+            symbolLayout={symbolLayout}
           />
           <span className="keycap__sep">/</span>
           <ActionLabel
             action={action.hold}
             fallback="·"
             layerNumbers={layerNumbers}
+            symbolLayout={symbolLayout}
           />
         </>
       )
@@ -192,6 +198,7 @@ function ActionLabel({
             action={part}
             fallback="·"
             layerNumbers={layerNumbers}
+            symbolLayout={symbolLayout}
           />
         </span>
       ))
@@ -208,6 +215,7 @@ export function KeyCap({
   keyDef,
   action,
   layerNumbers,
+  symbolLayout,
   selected,
   onSelect,
 }: KeyCapProps) {
@@ -240,6 +248,7 @@ export function KeyCap({
               action={action.tap}
               fallback="·"
               layerNumbers={layerNumbers}
+              symbolLayout={symbolLayout}
             />
           </span>
           <span className="keycap__hold">
@@ -247,6 +256,7 @@ export function KeyCap({
               action={action.hold}
               fallback="·"
               layerNumbers={layerNumbers}
+              symbolLayout={symbolLayout}
             />
           </span>
         </span>
@@ -256,6 +266,7 @@ export function KeyCap({
             action={action}
             fallback={keyDef.label}
             layerNumbers={layerNumbers}
+            symbolLayout={symbolLayout}
           />
         </span>
       )}

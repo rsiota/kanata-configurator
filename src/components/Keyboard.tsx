@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import type { SymbolLayout } from '../lib/displaySettings'
 import type { KeyAction, KeyboardLayout } from '../lib/types'
 import { KeyCap } from './KeyCap'
 
@@ -6,6 +7,7 @@ interface KeyboardProps {
   layout: KeyboardLayout
   bindings: Record<string, KeyAction>
   layerNumbers: Record<string, number>
+  symbolLayout: SymbolLayout
   selectedKeyId: string | null
   onSelectKey: (id: string, rect: DOMRect) => void
 }
@@ -19,6 +21,7 @@ export function Keyboard({
   layout,
   bindings,
   layerNumbers,
+  symbolLayout,
   selectedKeyId,
   onSelectKey,
 }: KeyboardProps) {
@@ -39,6 +42,7 @@ export function Keyboard({
             keyDef={key}
             action={bindings[key.id]}
             layerNumbers={layerNumbers}
+            symbolLayout={symbolLayout}
             selected={selectedKeyId === key.id}
             onSelect={onSelectKey}
           />

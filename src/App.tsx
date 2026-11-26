@@ -19,6 +19,17 @@ import {
   saveBoards,
 } from './lib/boardLibrary'
 import { createDefaultConfig } from './lib/defaultConfig'
+import {
+  loadDisplaySettings,
+  saveDisplaySettings,
+  type DisplaySettings,
+} from './lib/displaySettings'
+import {
+  applyAndRestart,
+  loadBridgeSettings,
+  saveBridgeSettings,
+  type BridgeSettings,
+} from './lib/kanataBridge'
 import { exportKanataConfig } from './lib/kanataExport'
 import { importKanataConfig, type ImportResult } from './lib/kanataImport'
 import { resolveLayout } from './lib/resolveLayout'
@@ -143,6 +154,12 @@ export default function App() {
   const [colorCoded, setColorCoded] = useState(true)
   const [sourceOpen, setSourceOpen] = useState(false)
   const [sourceDraft, setSourceDraft] = useState('')
+  const [displaySettings, setDisplaySettings] =
+    useState<DisplaySettings>(loadDisplaySettings)
+  const [bridgeSettings, setBridgeSettings] =
+    useState<BridgeSettings>(loadBridgeSettings)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [restarting, setRestarting] = useState(false)
   const [anchor, setAnchor] = useState<Anchor | null>(null)
   const [popoverPos, setPopoverPos] = useState<Position | null>(null)
   const [layerEditor, setLayerEditor] = useState<{
@@ -274,6 +291,37 @@ export default function App() {
       tone: 'info',
     })
     return null
+  }
+
+  function updateDisplaySettings(patch: Partial<DisplaySettings>) {
+    setDisplaySettings((prev) => {
+      const next = { ...prev, ...patch }
+      saveDisplaySettings(next)
+      return next
+    })
+  }
+
+  function updateBridgeSettings(patch: Partial<BridgeSettings>) {
+    setBridgeSettings((prev) => {
+      const next = { ...prev, ...patch }
+      saveBridgeSettings(next)
+      return next
+    })
+  }
+
+  async function restartKanata() {
+    setRestarting(true)
+    try {
+      const message = await applyAndRestart(source, bridgeSettings)
+      setNotice({ text: message, tone: 'info' })
+    } catch (err) {
+      setNotice({
+        text: err instanceof Error ? err.message : 'Failed to reach bridge',
+        tone: 'error',
+      })
+    } finally {
+      setRestarting(false)
+    }
   }
 
   function openBoardEditor(rect: Anchor) {
@@ -525,6 +573,7 @@ export default function App() {
         target.closest('.keycap') ||
         target.closest('.layer-tabs__chevron') ||
         target.closest('.board-stage__title-btn') ||
+        target.closest('.nav-btn--gear') ||
         target.closest('.popover')
       ) {
         return
@@ -533,11 +582,13 @@ export default function App() {
       closeLayerEditor()
       closeLayerMenu()
       closeBoardEditor()
+      setSettingsOpen(false)
     }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Escape') return
       if (sourceOpen) closeSource()
+      else if (settingsOpen) setSettingsOpen(false)
       else if (boardEditor) closeBoardEditor(true)
       else if (layerEditor) closeLayerEditor(true)
       else if (layerMenu) closeLayerMenu(true)
@@ -556,6 +607,7 @@ export default function App() {
     layerMenu,
     boardEditor,
     sourceOpen,
+    settingsOpen,
     closeSource,
   ])
 
@@ -822,6 +874,23 @@ export default function App() {
           >
             Source
           </button>
+          <button
+            type="button"
+            className="nav-btn"
+            disabled={restarting}
+            onClick={() => void restartKanata()}
+          >
+            {restarting ? 'Restarting…' : 'Restart Kanata'}
+          </button>
+          <button
+            type="button"
+            className="icon-btn nav-btn--gear"
+            aria-label="Settings"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsOpen((open) => !open)}
+          >
+            ⚙
+          </button>
           <input
             ref={fileRef}
             type="file"
@@ -882,6 +951,7 @@ export default function App() {
             layout={layout}
             bindings={activeLayer.bindings}
             layerNumbers={layerNumbers}
+            symbolLayout={displaySettings.symbolLayout}
             selectedKeyId={config.selectedKeyId}
             onSelectKey={selectKey}
           />
@@ -917,6 +987,7 @@ export default function App() {
             keyDef={selectedKey}
             action={activeLayer.bindings[selectedKey.id]}
             layers={config.layers}
+            symbolLayout={displaySettings.symbolLayout}
             onChange={setBinding}
           />
         </div>
@@ -1100,6 +1171,66 @@ export default function App() {
           onApply={applySourceEdit}
           onClose={closeSource}
         />
+      )}
+
+      {settingsOpen && (
+        <div
+          className="popover settings-popover"
+          role="dialog"
+          aria-label="Settings"
+        >
+          <header className="key-popover__header">
+            <h2>Settings</h2>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Close settings"
+              onClick={() => setSettingsOpen(false)}
+            >
+              ×
+            </button>
+          </header>
+          <div className="action-panel">
+            <label className="field">
+              <span>Shifted symbols</span>
+              <select
+                value={displaySettings.symbolLayout}
+                onChange={(e) =>
+                  updateDisplaySettings({
+                    symbolLayout: e.target.value as DisplaySettings['symbolLayout'],
+                  })
+                }
+              >
+                <option value="uk">UK — S-3 shows £</option>
+                <option value="us">US — S-3 shows #</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Bridge URL</span>
+              <input
+                value={bridgeSettings.url}
+                spellCheck={false}
+                onChange={(e) =>
+                  updateBridgeSettings({ url: e.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Token (optional)</span>
+              <input
+                value={bridgeSettings.token}
+                spellCheck={false}
+                onChange={(e) =>
+                  updateBridgeSettings({ token: e.target.value })
+                }
+              />
+            </label>
+          </div>
+          <p className="field-note">
+            Shifted symbols change legends only, not Kanata codes. The bridge
+            writes kanata.kbd and restarts Kanata.
+          </p>
+        </div>
       )}
     </div>
   )

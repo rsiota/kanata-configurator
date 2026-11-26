@@ -1,3 +1,4 @@
+import type { SymbolLayout } from './displaySettings'
 import type { KeyAction } from './types'
 
 const KEY_LABELS: Record<string, string> = {
@@ -7,6 +8,9 @@ const KEY_LABELS: Record<string, string> = {
   bspc: 'Bksp',
   spc: 'Space',
   caps: 'Caps',
+  grv: '`',
+  non_us_pound: '#',
+  nuhs: '#',
   lsft: 'Shift',
   rsft: 'Shift',
   lctl: 'Ctrl',
@@ -28,48 +32,79 @@ const KEY_LABELS: Record<string, string> = {
   right: '→',
 }
 
-/** US-style shifted legends. The Kanata code is still shown in the editor. */
-const SHIFTED_LABELS: Record<string, string> = {
-  '`': '~',
-  '1': '!',
-  '2': '@',
-  '3': '#',
-  '4': '$',
-  '5': '%',
-  '6': '^',
-  '7': '&',
-  '8': '*',
-  '9': '(',
-  '0': ')',
-  '-': '_',
-  '=': '+',
-  '[': '{',
-  ']': '}',
-  '\\': '|',
-  ';': ':',
-  "'": '"',
-  ',': '<',
-  '.': '>',
-  '/': '?',
+/** Shifted legends for the selected OS keyboard layout. Kanata codes stay unchanged. */
+const SHIFTED_LABELS: Record<SymbolLayout, Record<string, string>> = {
+  us: {
+    '`': '~',
+    grv: '~',
+    '1': '!',
+    '2': '@',
+    '3': '#',
+    '4': '$',
+    '5': '%',
+    '6': '^',
+    '7': '&',
+    '8': '*',
+    '9': '(',
+    '0': ')',
+    '-': '_',
+    '=': '+',
+    '[': '{',
+    ']': '}',
+    '\\': '|',
+    ';': ':',
+    "'": '"',
+    ',': '<',
+    '.': '>',
+    '/': '?',
+  },
+  uk: {
+    '`': '¬',
+    grv: '¬',
+    '1': '!',
+    '2': '"',
+    '3': '£',
+    '4': '$',
+    '5': '%',
+    '6': '^',
+    '7': '&',
+    '8': '*',
+    '9': '(',
+    '0': ')',
+    '-': '_',
+    '=': '+',
+    '[': '{',
+    ']': '}',
+    '\\': '|',
+    ';': ':',
+    "'": '@',
+    ',': '<',
+    '.': '>',
+    '/': '?',
+  },
 }
 
-function shiftedLabel(code: string): string | null {
+function shiftedLabel(code: string, symbolLayout: SymbolLayout): string | null {
   const match = /^(?:S|LSFT|RSFT)-(.*)$/.exec(code)
   if (!match) return null
 
   const base = match[1]
-  const symbol = SHIFTED_LABELS[base]
+  const symbol = SHIFTED_LABELS[symbolLayout][base]
   if (symbol) return symbol
   if (/^[a-z]$/.test(base)) return base.toUpperCase()
   return null
 }
 
-export function keyLabel(code: string): string {
-  const shifted = shiftedLabel(code)
+export function keyLabel(
+  code: string,
+  symbolLayout: SymbolLayout = 'uk',
+): string {
+  const shifted = shiftedLabel(code, symbolLayout)
   if (shifted) return shifted
 
   const known = KEY_LABELS[code.toLowerCase()]
   if (known) return known
+  if (/^f\d{1,2}$/.test(code)) return code.toUpperCase()
   return code.length === 1 ? code.toUpperCase() : code
 }
 
