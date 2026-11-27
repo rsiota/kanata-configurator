@@ -462,7 +462,7 @@ code {
 
 .keycap__legend {
   width: 100%;
-  font-size: clamp(0.68rem, calc(var(--u) * 0.25), 1rem);
+  font-size: clamp(0.78rem, calc(var(--u) * 0.31), 1.2rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -484,8 +484,8 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.2em;
-  height: 2.2em;
+  width: 1.7em;
+  height: 1.7em;
   vertical-align: middle;
   white-space: nowrap;
 }
@@ -507,13 +507,13 @@ code {
 }
 
 .keycap__shift-arrow {
-  width: 2.2em;
-  height: 2.2em;
+  width: 1.7em;
+  height: 1.7em;
 }
 
 .keycap__alt-glyph,
 .keycap__meta-glyph {
-  font-size: 2.2em;
+  font-size: 1.7em;
   line-height: 0.9;
 }
 
